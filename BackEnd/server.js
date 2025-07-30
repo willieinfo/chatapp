@@ -29,16 +29,34 @@ io.on('connection', (socket) => {
   //   console.log(data);
   // });
 
-  socket.on('chatMessage', (data) => {
-      io.to(data.room).emit('chatMessage', data); // Emit to specific room
-      console.log(data);
-  })
-  
-  // Handle username setting
+  // socket.on('chatMessage', (data) => {
+  //     io.to(data.room).emit('chatMessage', data); // Emit to specific room
+  //     console.log(data);
+  // })
+socket.on('chatMessage', (data) => {
+    const messageData = {
+        sender: data.sender,
+        message: data.message,
+        timestamp: new Date().toLocaleTimeString(),
+        source: 'SENDING',  // Default to sending
+        room: data.room  // Keep the room info
+    };
+
+    // io.to(data.room).emit('chatMessage', messageData); // Emit to specific room
+    io.emit('chatMessage', messageData);
+    console.log(data);
+});
+
+  // // Handle username setting
+  // socket.on('setUsername', (userName) => {
+  //     console.log(`User ${socket.id} set username to ${userName}`);
+  // });  
+
+      // Set username for the socket
   socket.on('setUsername', (userName) => {
-      userMap.set(socket.id, userName); // Store username
+      socket.userName = userName;  // Store username in the socket object
       console.log(`User ${socket.id} set username to ${userName}`);
-  });  
+  });
 
 
   // Handle joining a group (chat room)
@@ -48,16 +66,28 @@ io.on('connection', (socket) => {
   });
 
 
-  socket.on('disconnect', () => {
-      const userName = userMap.get(socket.id) || 'Anonymous'; // Get username or fallback
-      console.log(`${userName} disconnected`);
-      io.emit('chatMessage', {
-          sender: userName,
-          message: `${userName} disconnected`,
-          timestamp: new Date().toLocaleTimeString(),
-      });
-      userMap.delete(socket.id); // Clean up
-  });  
+  // socket.on('disconnect', () => {
+  //     console.log(`${userName} disconnected`);
+  //     io.emit('chatMessage', {
+  //         sender: userName,
+  //         message: `${userName} disconnected`,
+  //         timestamp: new Date().toLocaleTimeString(),
+  //     });
+  // });  
+
+// Emit a message when the user disconnects
+    socket.on('disconnect', () => {
+        const userName = socket.userName || 'Anonymous';  // Fallback if no userName
+        console.log(`${userName} disconnected`);
+
+        io.emit('chatMessage', {
+            sender: 'SYSTEM',  // Use 'SYSTEM' for system messages
+            message: `${userName} has left the chat.`,
+            timestamp: new Date().toLocaleTimeString(),
+            source: 'SYSTEM'  // Add source info
+        });
+       
+    });  
 
 });
 

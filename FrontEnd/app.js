@@ -18,10 +18,6 @@ document.addEventListener('DOMContentLoaded', () => {
     chatIcon.addEventListener('click', () => {
         chatWindow.style.display = chatWindow.style.display === 'none' ? 'block' : 'none';
     });
-    // clearIcon.addEventListener('click', () => {
-    //     const confirmed = confirm(`Do you want to delete all chat data?`)
-    //     if (confirmed) localStorage.removeItem('chatMessages')
-    // });
     clearIcon.addEventListener('click', () => {
         const confirmed = confirm(`Do you want to delete all chat data?`);
         if (confirmed) {
@@ -35,9 +31,9 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         const userName = userNameInput.value.trim();
         if (userName) {
-            localStorage.setItem('userName', userName); // Save username
+            localStorage.setItem('userName', userName); 
             socket.emit('setUsername', userName); // Send username to server
-            userNameInput.value = ''; // Clear input
+            userNameInput.value = ''; 
         }
     });
 
@@ -47,18 +43,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const userName = localStorage.getItem('userName') || 'Anonymous'; // Fallback if no username
         messageContainer.innerHTML = ''; // Clear the message container
         if (messages[currentChat]) {
-            messages[currentChat].forEach(msg => {
+            messages[currentChat].forEach(data => {
                 const msgDiv = document.createElement('div');
                 msgDiv.className = 'message';
 
                 // Create the message content
                 const messageContent = document.createElement('div');
-                messageContent.textContent = msg.message;
+                messageContent.textContent = data.message;
 
                 // Create sender info (name and timestamp)
                 const senderInfo = document.createElement('div');
                 senderInfo.className = 'senderInfo';
-                senderInfo.textContent = `${msg.sender.substring(0, 5).toUpperCase()} - ${msg.timestamp}`;
+                senderInfo.textContent = `${data.sender.substring(0, 5).toUpperCase()} - ${data.timestamp}`;
                 senderInfo.style.fontSize = 'small';
                 senderInfo.style.fontStyle = 'italic';
                 senderInfo.style.alignSelf = 'flex-end';
@@ -67,8 +63,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 msgDiv.appendChild(senderInfo);
 
                 // Style based on username
-                msgDiv.style.alignSelf = msg.sender === userName ? 'flex-end' : 'flex-start';
-                msgDiv.style.backgroundColor = msg.sender === userName ? 'rgb(0,64,128)' : 'rgb(91, 147, 193)';
+                msgDiv.style.alignSelf = data.sender === userName ? 'flex-end' : 'flex-start';
+                msgDiv.style.backgroundColor = data.sender === userName ? 'rgb(0,64,128)' : 'rgb(91, 147, 193)';
+                if (data.source === 'SYSTEM') {
+                    msgDiv.style.alignSelf = 'center';
+                    msgDiv.style.backgroundColor = 'rgb(0, 255, 0)';
+                }
+
                 msgDiv.style.color = 'white';
 
                 messageContainer.appendChild(msgDiv);
@@ -76,55 +77,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // function loadMessages() {
-    //     const messages = JSON.parse(localStorage.getItem('chatMessages')) || {};
-    //     messageContainer.innerHTML = ''; // Clear the message container
-    //     if (messages[currentChat]) {
-    //         messages[currentChat].forEach(msg => {
-    //             const msgDiv = document.createElement('div');
-    //             msgDiv.className = 'message';
-
-    //             // Create the message content
-    //             const messageContent = document.createElement('div');
-    //             messageContent.textContent = msg.message;
-
-    //             // Create sender info (name and timestamp)
-    //             const senderInfo = document.createElement('div');
-    //             senderInfo.className = 'senderInfo';
-    //             senderInfo.textContent = `${msg.sender.substring(0,5).toUpperCase()} - ${msg.timestamp}`;
-    //             senderInfo.style.fontSize = 'small';
-    //             senderInfo.style.fontStyle = 'italic';
-    //             senderInfo.style.alignSelf = 'flex-end';
-
-    //             msgDiv.appendChild(messageContent);
-    //             msgDiv.appendChild(senderInfo);
-
-    //             console.log(msg.sender,socket.id)
-    //             msgDiv.style.alignSelf = msg.sender === socket.id ? 'flex-end' : 'flex-start';
-    //             msgDiv.style.backgroundColor = msg.sender === socket.id ? 'rgb(0,64,128)' : 'rgb(91, 147, 193)';
-    //             msgDiv.style.color = 'white';
-
-    //             messageContainer.appendChild(msgDiv);
-    //         });
-    //     }
-    // }
-
-    // Save messages to localStorage
-    // function saveMessages() {
-    //     const messages = JSON.parse(localStorage.getItem('chatMessages')) || {};
-    //     const messageData = {
-    //         sender: socket.id, // or use username here
-    //         message: messageInput.value,
-    //         timestamp: new Date().toLocaleTimeString(),
-    //     };
-
-    //     if (!messages[currentChat]) {
-    //         messages[currentChat] = [];
-    //     }
-
-    //     messages[currentChat].push(messageData);
-    //     localStorage.setItem('chatMessages', JSON.stringify(messages));
-    // }
 
     function saveMessages() {
         const messages = JSON.parse(localStorage.getItem('chatMessages')) || {};
@@ -133,6 +85,8 @@ document.addEventListener('DOMContentLoaded', () => {
             sender: userName, // Use username
             message: messageInput.value,
             timestamp: new Date().toLocaleTimeString(),
+            source: messages.source,
+            room: currentChat,
         };
 
         if (!messages[currentChat]) {
@@ -144,26 +98,52 @@ document.addEventListener('DOMContentLoaded', () => {
     }    
 
     // Handle message sending (Private or Broadcast)
-sendMessageBtn.addEventListener('click', () => {
-    if (messageInput.value.trim()) {
-        const userName = localStorage.getItem('userName') || 'Anonymous';
-        const messageData = {
-            sender: userName, // Use username
-            message: messageInput.value,
-            timestamp: new Date().toLocaleTimeString()
-        };
+    sendMessageBtn.addEventListener('click', () => {
 
-        socket.emit('chatMessage', {
-            sender: messageData.sender,
-            message: messageData.message,
-            timestamp: messageData.timestamp
-        });
+        if (messageInput.value.trim()) {
+            const userName = localStorage.getItem('userName') || 'Anonymous';
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message';
+            msgDiv.textContent = messageInput.value.trim();
 
-        saveMessages();
-        messageInput.value = '';
-        messageContainer.scrollTop = messageContainer.scrollHeight;
-    }
-});   
+            msgDiv.style.alignSelf = 'flex-end';
+            msgDiv.style.backgroundColor = 'rgb(0,64,128)';
+            msgDiv.style.color = 'white';
+
+            const messageData = {
+                sender: userName, // Use username
+                message: messageInput.value,
+                timestamp: new Date().toLocaleTimeString(),
+                source: 'SENDING',
+                room: currentChat
+            };
+
+                const senderInfo = document.createElement('div');
+                senderInfo.className = 'senderInfo';
+                senderInfo.textContent = `${messageData.timestamp}`;
+                senderInfo.style.fontSize = 'small';
+                senderInfo.style.fontStyle = 'italic';
+                senderInfo.style.alignSelf = 'flex-end';
+                senderInfo.style.padding = '0';
+
+
+            messageContainer.appendChild(msgDiv);
+            messageContainer.appendChild(senderInfo);
+
+
+            socket.emit('chatMessage', {
+                sender: messageData.sender,
+                message: messageData.message,
+                timestamp: messageData.timestamp,
+                source: messageData.source,
+                room: messageData.room
+            });
+
+            saveMessages();
+            messageInput.value = '';
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+        }
+    });   
 
 // sendMessageBtn.addEventListener('click', () => {
     //     if (messageInput.value.trim()) {
@@ -197,29 +177,63 @@ sendMessageBtn.addEventListener('click', () => {
     });
 
     // Listen for incoming messages in real-time
-socket.on('chatMessage', (data) => {
-    console.log('Received chatMessage:', data);
-    const userName = localStorage.getItem('userName') || 'Anonymous';
-    const msgDiv = document.createElement('div');
-    msgDiv.className = 'message';
+    socket.on('chatMessage', (data) => {
+        // console.log('Received chatMessage:', data);
+        // if (data.room === currentChat) {
+            const userName = localStorage.getItem('userName') || 'Anonymous';
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message';
 
-    const messageContent = document.createElement('div');
-    messageContent.textContent = data.message;
+            const messageContent = document.createElement('div');
+            messageContent.textContent = data.message;
 
-    const senderInfo = document.createElement('div');
-    senderInfo.className = 'senderInfo';
-    senderInfo.textContent = `${data.sender} - ${data.timestamp}`;
+            const senderInfo = document.createElement('div');
+            senderInfo.className = 'senderInfo';
+            senderInfo.textContent = `${data.sender} - ${data.timestamp}`;
 
-    msgDiv.appendChild(messageContent);
-    msgDiv.appendChild(senderInfo);
+            msgDiv.appendChild(messageContent);
+            msgDiv.appendChild(senderInfo);
 
-    msgDiv.style.alignSelf = data.sender === userName ? 'flex-end' : 'flex-start';
-    msgDiv.style.backgroundColor = data.sender === userName ? 'rgb(0,64,128)' : 'rgb(91, 147, 193)';
-    msgDiv.style.color = 'white';
+            console.log(data)
 
-    messageContainer.appendChild(msgDiv);
-    messageContainer.scrollTop = messageContainer.scrollHeight;
-});
+            msgDiv.style.alignSelf = data.sender === userName ? 'flex-end' : 'flex-start';
+            msgDiv.style.backgroundColor = data.sender === userName ? 'rgb(0,64,128)' : 'rgb(91, 147, 193)';
+
+            if (data.source === 'SYSTEM') {
+                msgDiv.style.alignSelf = 'center';
+                msgDiv.style.backgroundColor = 'rgb(0, 255, 0)';
+            }
+
+            msgDiv.style.color = 'white';
+
+            messageContainer.appendChild(msgDiv);
+            messageContainer.scrollTop = messageContainer.scrollHeight;
+        // }
+    });
+
+// socket.on('chatMessage', (data) => {
+//     console.log('Received chatMessage:', data);
+//     const userName = localStorage.getItem('userName') || 'Anonymous';
+//     const msgDiv = document.createElement('div');
+//     msgDiv.className = 'message';
+
+//     const messageContent = document.createElement('div');
+//     messageContent.textContent = data.message;
+
+//     const senderInfo = document.createElement('div');
+//     senderInfo.className = 'senderInfo';
+//     senderInfo.textContent = `${data.sender} - ${data.timestamp}`;
+
+//     msgDiv.appendChild(messageContent);
+//     msgDiv.appendChild(senderInfo);
+
+//     msgDiv.style.alignSelf = data.sender === userName ? 'flex-end' : 'flex-start';
+//     msgDiv.style.backgroundColor = data.sender === userName ? 'rgb(0,64,128)' : 'rgb(91, 147, 193)';
+//     msgDiv.style.color = 'white';
+
+//     messageContainer.appendChild(msgDiv);
+//     messageContainer.scrollTop = messageContainer.scrollHeight;
+// });
 
     // socket.on('chatMessage', (data) => {
     //     console.log('Received chatMessage:', data);
@@ -300,14 +314,14 @@ socket.on('chatMessage', (data) => {
         loadMessages(); // Call loadMessages after connection
     });    
 
-    function getClientId() {
-        let clientId = localStorage.getItem('clientId');
-        if (!clientId) {
-            clientId = 'client_' + Math.random().toString(36).substr(2, 9); // Random ID
-            localStorage.setItem('clientId', clientId);
-        }
-        return clientId;
-    }    
+    // function getClientId() {
+    //     let clientId = localStorage.getItem('clientId');
+    //     if (!clientId) {
+    //         clientId = 'client_' + Math.random().toString(36).substr(2, 9); // Random ID
+    //         localStorage.setItem('clientId', clientId);
+    //     }
+    //     return clientId;
+    // }    
 });
 
 
