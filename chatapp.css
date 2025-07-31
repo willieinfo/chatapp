@@ -4,6 +4,11 @@
     --second-bg-color: rgb(91, 147, 193); 
     --darker-bg-color: rgb(0,0,139); 
 }
+
+body {
+    background-image: linear-gradient(to right, #ffff, var(--main-bg-color)  );
+}
+
 .appMessaging {
     position: fixed;
     bottom: 30px;
@@ -11,6 +16,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-end;
+
 }
 
 .chatWindow {
@@ -29,6 +35,10 @@
     align-items: center;
 }
 
+/* Chat icons */
+.userNameDiv {
+    padding: 10px;
+}
 .chatIcon, .clearIcon {
     cursor: pointer;
     font-size: 18px;
@@ -79,18 +89,27 @@
 }
 #userNameInput {
     width: 100%;
+    margin-right: 10px;
 }
 #userNameBtn {
     height: 30px;
+    border-radius: 5px;
 }
+#userNameBtn:hover {
+    cursor: pointer;
+    background-color: var(--second-bg-color);
+    color: white;
+}
+
 #messageInput {
     width: 85%;
     padding: 10px;
+    margin-right: 10px;
     border-radius: 5px;
     border: 1px solid #ccc;
 }
 
-#sendMessage {
+#sendMessageBtn {
     width: 10%;
     padding: 10px;
     border-radius: 5px;
@@ -98,13 +117,11 @@
     color: white;
     cursor: pointer;
 }
-
 #sendMessage:hover {
     background-color: #45a049;
 }
 
-
-/*  */
+/* actual message div */
 .message {
     display: flex;
     flex-direction: column;
@@ -115,11 +132,9 @@
     max-width: 80%;
     word-wrap: break-word;
 }
-
 .message:nth-child(even) {
     background-color: #e0e0e0bb;
 }
-
 .message:first-child {
     margin-top: 20px; /* Add space to avoid overlap of messages */
 }

@@ -11,13 +11,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const userNameInput = document.getElementById('userNameInput')
 
     const userNameForm = document.querySelector('.userNameForm');   
-    const userNameDiv = document.querySelector('.userNameDiv');   
 
     const socket = io('http://localhost:3000'); // Connect to the correct server
 
-    let currentChat = null; // Track the currently selected room/user
-    const userName = localStorage.getItem('userName') || null;
-    userNameDiv.innerHTML = userName ? `${userName} Chat Box`: ''
+    let currentChat = 'user1'; // Default chat with user1
 
     userNameForm.addEventListener('submit', (e) => {
         e.preventDefault();
@@ -27,7 +24,6 @@ document.addEventListener('DOMContentLoaded', () => {
             socket.emit('joinRoom', { room: 'default', userName }); // Join a default room
             userNameForm.style.display = 'none'; // Hide form after submission
             chatSelector.disabled = false; // Enable chat selector
-            userNameDiv.innerHTML = userName ? `${userName} Chat Box`: ''
         }
     });
 
@@ -35,9 +31,14 @@ document.addEventListener('DOMContentLoaded', () => {
     chatSelector.addEventListener('change', (e) => {
         currentChat = e.target.value;
         messageContainer.innerHTML = ''; // Clear messages when switching chats
-        socket.emit('joinRoom', {currentChat, userName});
+        socket.emit('joinRoom', currentChat);
         loadMessages(currentChat); // Load saved messages for the selected chat
     });    
+    // chatSelector.addEventListener('change', (e) => {
+    //     currentChat = e.target.value;
+    //     socket.emit('joinRoom', currentChat);
+    //     loadMessages();
+    // });
 
     // Toggle chat window visibility
     chatIcon.addEventListener('click', () => {
@@ -64,49 +65,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function loadMessages(room = 'default') {
-        const messages = JSON.parse(localStorage.getItem(`chatMessages_${room}`) || '[]');
-        // const userName = localStorage.getItem('userName')
-        messageContainer.innerHTML = '';
-        messages.forEach((data) => {
-            const msgDiv = document.createElement('div');
-            msgDiv.className = 'message';
-            msgDiv.style.alignSelf = data.sender === userName ? 'flex-end' : 'flex-start';
-            msgDiv.style.backgroundColor = data.sender === userName ? 'var(--main-bg-color)' : 'var(--second-bg-color)';
-            msgDiv.style.color = 'white';
+    // Load messages from localStorage
+    function loadMessages() {
+        const messages = JSON.parse(localStorage.getItem('chatMessages')) || {};
+        const userName = localStorage.getItem('userName') || 'Anonymous'; // Fallback if no username
 
-            if (data.source === 'SYSTEM' && data.sender !== userName) {
-                msgDiv.style.alignSelf = 'center';
-                msgDiv.style.backgroundColor = data.message.includes('left') ? 'rgba(255, 0, 0, 0.7)' : '#90EE90';
-                msgDiv.style.color = 'black';
-            }
+        messageContainer.innerHTML = ''; // Clear the message container
+        if (messages[currentChat]) {
+            messages[currentChat].forEach(data => {
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'message';
 
-            const messageContent = document.createElement('div');
-            messageContent.textContent = data.message;
+                // Create the message content
+                const messageContent = document.createElement('div');
+                messageContent.textContent = data.message;
 
-            const senderInfo = document.createElement('div');
-            senderInfo.className = 'senderInfo';
-            senderInfo.textContent = `${data.sender} - ${data.timestamp}`;
-            senderInfo.style.fontSize = 'small';
-            senderInfo.style.fontStyle = 'italic';
-            senderInfo.style.alignSelf = data.sender === localStorage.getItem('userName') ? 'flex-start' : 'flex-end';
+                // Create sender info (name and timestamp)
+                const senderInfo = document.createElement('div');
+                senderInfo.className = 'senderInfo';
+                senderInfo.textContent = `${data.sender} - ${data.timestamp}`;
+                senderInfo.style.fontSize = 'small';
+                senderInfo.style.fontStyle = 'italic';
+                senderInfo.style.alignSelf = 'flex-end';
 
-            msgDiv.appendChild(messageContent);
-            msgDiv.appendChild(senderInfo);
-            messageContainer.appendChild(msgDiv);
-        });
-        messageContainer.scrollTop = messageContainer.scrollHeight;
+                msgDiv.appendChild(messageContent);
+                msgDiv.appendChild(senderInfo);
+
+                // Style based on username
+                msgDiv.style.alignSelf = data.sender === userName ? 'flex-end' : 'flex-start';
+                msgDiv.style.backgroundColor = data.sender === userName ? 'rgb(0,64,128)' : 'rgb(91, 147, 193)';
+                msgDiv.style.color = 'white';
+                if (data.source === 'SYSTEM') {
+                    msgDiv.style.alignSelf = 'center';
+                    msgDiv.style.backgroundColor = '#90EE90';
+                    msgDiv.style.color = 'black'
+                }
+
+                messageContainer.appendChild(msgDiv);
+                messageContainer.scrollTop = messageContainer.scrollHeight;
+            });
+        }
     }
 
-    // Initialize: Check if userName exists
-    if (userName) {
-        // userNameForm.style.display = 'none';
-        socket.emit('joinRoom', { room: 'default',  userName });
-        // chatSelector.disabled = false;
-    } else {
-        socket.emit('joinRoom', { room: 'default', sender:'Anonymous' });
-        // chatSelector.disabled = true; // Disable until username is set
-    }
 
     // Handle message sending (Private or Broadcast)
     sendMessageBtn.addEventListener('click', () => {
@@ -151,9 +151,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 room: messageData.room
             });
 
-            saveMessages(messageData, currentChat);
+            saveMessages(messageData);
             messageInput.value = '';
-            messageContainer.scrollTop = messageContainer.scrollHeight;
+            const isScrolledToBottom = messageContainer.scrollHeight - messageContainer.clientHeight <= messageContainer.scrollTop + 1;
+            if (isScrolledToBottom) {
+                messageContainer.scrollTop = messageContainer.scrollHeight;
+            }            
 
         }
     });   
@@ -168,6 +171,10 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('chatMessage', (data) => {
         console.log('Received chatMessage:', data);
         const userName = localStorage.getItem('userName') || 'Anonymous';
+
+        // (data.room === currentChat &&  (data.source === 'SYSTEM' || data.sender !== userName))        
+        // ((data.room === currentChat && data.sender !== userName) || 
+        //     (data.room === currentChat && data.source === 'SYSTEM') )
 
         if (data.room === currentChat &&  (data.source === 'SYSTEM' || data.sender !== userName)) {
             // Create a messageInput div for receiving
@@ -191,24 +198,56 @@ document.addEventListener('DOMContentLoaded', () => {
             msgDiv.style.backgroundColor = 'var(--second-bg-color)';
             msgDiv.style.color = 'white'
 
-            if (data.source === 'SYSTEM' && data.sender !== userName) {
+            if (data.source === 'SYSTEM') {
                 msgDiv.style.alignSelf = 'center';
-                msgDiv.style.backgroundColor = data.message.includes('left') ? 'rgba(255, 0, 0, 0.7)' : '#90EE90';
+                msgDiv.style.backgroundColor = '#90EE90';
                 msgDiv.style.color = 'black'
             }
 
-            saveMessages(data,data.room);
+            saveMessages(data);
             messageContainer.appendChild(msgDiv);
-            messageContainer.scrollTop = messageContainer.scrollHeight;
+            const isScrolledToBottom = messageContainer.scrollHeight - messageContainer.clientHeight <= messageContainer.scrollTop + 1;
+            if (isScrolledToBottom) {
+                messageContainer.scrollTop = messageContainer.scrollHeight;
+            }            
         }
     });
 
     // save messages to localStorage
-    function saveMessages(data,room) {
-        let messages = JSON.parse(localStorage.getItem(`chatMessages_${room}`) || '[]');
+    function saveMessages(data) {
+        let messages = JSON.parse(localStorage.getItem('messages') || '[]');
         messages.push(data);
-        localStorage.setItem(`chatMessages_${room}`, JSON.stringify(messages));
+        localStorage.setItem('messages', JSON.stringify(messages));
     }
+
+    // save messages to localStorage
+    // function saveMessages() {
+    //     const messages = JSON.parse(localStorage.getItem('chatMessages')) || {};
+    //     const userName = localStorage.getItem('userName') || 'Anonymous';
+    //     const messageData = {
+    //         sender: userName, // Use username
+    //         message: messageInput.value, //inputted message
+    //         timestamp: new Date().toLocaleTimeString(),
+    //         source: messages.source,
+    //         room: currentChat,
+    //     };
+
+    //     if (!messages[currentChat]) {
+    //         messages[currentChat] = [];
+    //     }
+
+    //     messages[currentChat].push(messageData);
+    //     localStorage.setItem('chatMessages', JSON.stringify(messages));
+    // }    
+
+
+
+    // Handle chat selection change (room selection)
+    chatSelector.addEventListener('change', (e) => {
+        currentChat = e.target.value;
+        socket.emit('joinRoom', currentChat);
+        loadMessages();
+    });
 
     // Listen for user list updates
     socket.on('userList', (users) => {
@@ -221,10 +260,10 @@ document.addEventListener('DOMContentLoaded', () => {
         chatSelector.innerHTML = ''; // Clear existing options
 
         // Add group option (static or dynamic if needed)
-        const option1 = document.createElement('option');
-        option1.value = 'default';
-        option1.textContent = 'default';
-        chatSelector.appendChild(option1);
+        const groupOption = document.createElement('option');
+        groupOption.value = 'group';
+        groupOption.textContent = 'Fam Bam';
+        chatSelector.appendChild(groupOption);
 
         // Add user options
         users.forEach(({ userName, room }) => {
@@ -240,7 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentChat && chatSelector.querySelector(`option[value="${currentChat}"]`)) {
             chatSelector.value = currentChat;
         } else {
-            currentChat = chatSelector.value || 'default'; // Default to default or first option
+            currentChat = chatSelector.value || 'group'; // Default to group or first option
         }
     }    
 
@@ -250,4 +289,64 @@ document.addEventListener('DOMContentLoaded', () => {
     });    
 
 });    
+
+    // function getClientId() {
+    //     let clientId = localStorage.getItem('clientId');
+    //     if (!clientId) {
+    //         clientId = 'client_' + Math.random().toString(36).substr(2, 9); // Random ID
+    //         localStorage.setItem('clientId', clientId);
+    //     }
+    //     return clientId;
+    // }    
+
+    // // Listen for private messages
+    // socket.on('privateMessage', (data) => {
+    //     if (data.receiverId === socket.id) {
+    //         const msgDiv = document.createElement('div');
+    //         msgDiv.className = 'message';
+
+    //         // Display private message
+    //         const messageContent = document.createElement('div');
+    //         messageContent.textContent = `Private from ${data.sender}: ${data.message}`;
+
+    //         const senderInfo = document.createElement('div');
+    //         senderInfo.className = 'senderInfo';
+    //         senderInfo.textContent = `${data.sender} - ${data.timestamp}`;
+
+    //         msgDiv.appendChild(messageContent);
+    //         msgDiv.appendChild(senderInfo);
+
+    //         msgDiv.style.alignSelf = 'flex-start';
+    //         msgDiv.style.backgroundColor = 'rgb(255, 99, 71)';  // Private message color
+    //         msgDiv.style.color = 'white';
+
+    //         messageContainer.appendChild(msgDiv);
+    //     }
+    // });
+
+    // // Listen for broadcast messages
+    // socket.on('broadcastMessage', (data) => {
+    //     const msgDiv = document.createElement('div');
+    //     msgDiv.className = 'message';
+
+    //     // Display broadcast message
+    //     const messageContent = document.createElement('div');
+    //     messageContent.textContent = `Broadcast from ${data.sender}: ${data.message}`;
+
+    //     const senderInfo = document.createElement('div');
+    //     senderInfo.className = 'senderInfo';
+    //     senderInfo.textContent = `${data.sender} - ${data.timestamp}`;
+
+    //     msgDiv.appendChild(messageContent);
+    //     msgDiv.appendChild(senderInfo);
+
+    //     msgDiv.style.alignSelf = 'flex-start';
+    //     msgDiv.style.backgroundColor = 'rgb(91, 147, 193)';  // Broadcast message color
+    //     msgDiv.style.color = 'white';
+
+    //     messageContainer.appendChild(msgDiv);
+    // });
+    
+
+
 
