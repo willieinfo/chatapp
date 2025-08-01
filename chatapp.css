@@ -16,16 +16,17 @@ body {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
+    width: 400px;
 
 }
 
 .chatWindow {
     display: none;
-    width: 500px;
     background-color: #fff;
     border: 1px solid #ccc;
     border-radius: 8px;
     padding: 10px;
+    width: 400px;
     box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -38,7 +39,17 @@ body {
 /* Chat icons */
 .userNameDiv {
     padding: 10px;
+    width: 100%;
+    overflow: hidden;
+    background-color: var(--darker-bg-color);
+    color: whitesmoke;
 }
+#userNameBtn {
+    border: none;
+    width: 10%;
+    padding: 10px;
+}
+
 .chatIcon, .clearIcon {
     cursor: pointer;
     font-size: 18px;
@@ -56,15 +67,16 @@ body {
     display: flex;
     width: 100%;
     height:auto;
-    justify-content: space-between;
-    background-color: lightgrey;
+    background-color: transparent;
+    color: white;
+    justify-content: flex-end;
 }
 
 .messageContainer {
     max-height: 300px;
     overflow-y: auto;
     margin: 10px 0;
-    padding: 10px;
+    padding: 10px ;
     display: flex;
     flex-direction: column;
     gap: 10px; /* Adds space between messages */
@@ -116,9 +128,21 @@ body {
     background-color: #4CAF50;
     color: white;
     cursor: pointer;
+    border: none;
+
 }
 #sendMessage:hover {
-    background-color: #45a049;
+    background-color: #a9f4ac;
+}
+.senderInfo {
+    font-size: 10px;
+    font-family: Arial, Helvetica, sans-serif;
+    align-self: flex-end;
+
+    padding: 5px;
+    margin: 0;
+    background-color: transparent;
+    color: whitesmoke;
 }
 
 /* actual message div */
@@ -126,7 +150,7 @@ body {
     display: flex;
     flex-direction: column;
     margin: 5px 0;
-    padding: 10px;
+    padding: 10px 10px 0px 10px;
     background-color: #f1f1f1;
     border-radius: 10px;
     max-width: 80%;

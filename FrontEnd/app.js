@@ -6,7 +6,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendMessageBtn = document.getElementById('sendMessageBtn');
     const chatSelector = document.getElementById('chatSelector');
     
-    const clearIcon = document.querySelector('.clearIcon');
     const userNameBtn = document.getElementById('userNameBtn');
     const userNameInput = document.getElementById('userNameInput')
 
@@ -22,20 +21,32 @@ document.addEventListener('DOMContentLoaded', () => {
     userNameForm.addEventListener('submit', (e) => {
         e.preventDefault();
         const userName = userNameInput.value.trim();
+        console.log('userName: '.userName)
         if (userName) {
             localStorage.setItem('userName', userName);
-            socket.emit('joinRoom', { room: 'default', userName }); // Join a default room
+            // socket.emit('joinRoom', { room: 'Default', userName }); // Join a default room
             userNameForm.style.display = 'none'; // Hide form after submission
             chatSelector.disabled = false; // Enable chat selector
             userNameDiv.innerHTML = userName ? `${userName} Chat Box`: ''
         }
+
+        const room = chatSelector.value;  // Get the selected room
+        console.log(userName,room)
+        if (userName && room) {
+            // Emit the joinRoom event to the backend with userName and room
+            socket.emit('joinRoom', { userName, room });
+        }        
     });
 
     // Handle chat selection
     chatSelector.addEventListener('change', (e) => {
         currentChat = e.target.value;
         messageContainer.innerHTML = ''; // Clear messages when switching chats
-        socket.emit('joinRoom', {currentChat, userName});
+
+        if (currentChat && userName) {
+            socket.emit('joinRoom', { userName, room: currentChat });
+        }        
+
         loadMessages(currentChat); // Load saved messages for the selected chat
     });    
 
@@ -44,14 +55,6 @@ document.addEventListener('DOMContentLoaded', () => {
         chatWindow.style.display = chatWindow.style.display === 'none' ? 'block' : 'none';
     });
 
-    clearIcon.addEventListener('click', () => {
-        const confirmed = confirm(`Do you want to delete all chat data?`);
-        if (confirmed) {
-            const userName = localStorage.getItem('userName');
-            localStorage.clear();
-            if (userName) localStorage.setItem('userName', userName); // Restore username
-        }
-    });
 
     // Temporary data entry for userName 
     userNameBtn.addEventListener('click', (e) => {
@@ -64,7 +67,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    function loadMessages(room = 'default') {
+    function loadMessages(room = 'Default') {
         const messages = JSON.parse(localStorage.getItem(`chatMessages_${room}`) || '[]');
         // const userName = localStorage.getItem('userName')
         messageContainer.innerHTML = '';
@@ -72,6 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const msgDiv = document.createElement('div');
             msgDiv.className = 'message';
             msgDiv.style.alignSelf = data.sender === userName ? 'flex-end' : 'flex-start';
+            msgDiv.style.textAlign = data.sender === userName ? 'left' : 'right';
             msgDiv.style.backgroundColor = data.sender === userName ? 'var(--main-bg-color)' : 'var(--second-bg-color)';
             msgDiv.style.color = 'white';
 
@@ -87,13 +91,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const senderInfo = document.createElement('div');
             senderInfo.className = 'senderInfo';
             senderInfo.textContent = `${data.sender} - ${data.timestamp}`;
-            senderInfo.style.fontSize = 'small';
-            senderInfo.style.fontStyle = 'italic';
-            senderInfo.style.alignSelf = data.sender === localStorage.getItem('userName') ? 'flex-start' : 'flex-end';
+            senderInfo.style.alignSelf = data.sender === userName ? 'flex-start' : 'flex-end';
+            senderInfo.style.textAlign = data.sender === userName ? 'right' : 'left';
 
             msgDiv.appendChild(messageContent);
             msgDiv.appendChild(senderInfo);
             messageContainer.appendChild(msgDiv);
+            // messageContainer.appendChild(senderInfo);
         });
         messageContainer.scrollTop = messageContainer.scrollHeight;
     }
@@ -101,10 +105,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize: Check if userName exists
     if (userName) {
         // userNameForm.style.display = 'none';
-        socket.emit('joinRoom', { room: 'default',  userName });
+        socket.emit('joinRoom', { userName, room: 'Default' });
         // chatSelector.disabled = false;
     } else {
-        socket.emit('joinRoom', { room: 'default', sender:'Anonymous' });
+        socket.emit('joinRoom', { sender:'Anonymous', room: 'Default' });
         // chatSelector.disabled = true; // Disable until username is set
     }
 
@@ -120,13 +124,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Default position is to the right when user sends message
             msgDiv.style.alignSelf = 'flex-end';
+            msgDiv.style.textAlign = 'end';
             msgDiv.style.backgroundColor = 'var(--main-bg-color)';
             msgDiv.style.color = 'white';
 
             const messageData = {
                 sender: userName, // Use username
                 message: messageInput.value,
-                timestamp: new Date().toLocaleTimeString(),
+                timestamp: formatDateTimeNow(),
                 source: 'SENDING',
                 room: currentChat
             };
@@ -134,14 +139,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const senderInfo = document.createElement('div');
             senderInfo.className = 'senderInfo';
             senderInfo.textContent = `${messageData.timestamp}`;
-            senderInfo.style.fontSize = 'small';
-            senderInfo.style.fontStyle = 'italic';
             senderInfo.style.alignSelf = 'flex-end';
-            senderInfo.style.padding = '0';
+            senderInfo.style.textAlign = 'right';
 
             // Append to main messageContainer
             messageContainer.appendChild(msgDiv);
             msgDiv.appendChild(senderInfo);
+            // messageContainer.appendChild(senderInfo);
 
             socket.emit('chatMessage', {
                 sender: messageData.sender,
@@ -180,14 +184,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const senderInfo = document.createElement('div');
             senderInfo.className = 'senderInfo';
             senderInfo.textContent = `${data.sender} - ${data.timestamp}`;
-            senderInfo.style.fontSize = 'small';
-            senderInfo.style.fontStyle = 'italic';
-            senderInfo.style.alignSelf = 'flex-end';
+            senderInfo.style.alignSelf = 'flex-start';
+            senderInfo.style.textAlign = 'left';
 
             msgDiv.appendChild(messageContent);
             msgDiv.appendChild(senderInfo);
 
             msgDiv.style.alignSelf = 'flex-start';
+            msgDiv.style.textAlign = 'start';
             msgDiv.style.backgroundColor = 'var(--second-bg-color)';
             msgDiv.style.color = 'white'
 
@@ -199,6 +203,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             saveMessages(data,data.room);
             messageContainer.appendChild(msgDiv);
+            // messageContainer.appendChild(senderInfo);
             messageContainer.scrollTop = messageContainer.scrollHeight;
         }
     });
@@ -222,27 +227,80 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Add group option (static or dynamic if needed)
         const option1 = document.createElement('option');
-        option1.value = 'default';
-        option1.textContent = 'default';
+        option1.value = 'Default';
+        option1.textContent = 'Default';
         chatSelector.appendChild(option1);
 
         // Add user options
         users.forEach(({ userName, room }) => {
-            if (userName !== localStorage.getItem('userName')) { // Exclude current user
+            // Add room to the chatSelector list
+            const existingOption = [...chatSelector.options].find(option => option.value === room);
+
+            // If the option does not exist, create and append it
+            if (!existingOption) {
                 const option = document.createElement('option');
-                option.value = userName; // Use userName as value for direct messages
+                option.value = room;  // Make room the value for the option
                 option.textContent = userName;
                 chatSelector.appendChild(option);
-            }
+            }        
+
         });
 
         // Restore currentChat if it still exists
         if (currentChat && chatSelector.querySelector(`option[value="${currentChat}"]`)) {
             chatSelector.value = currentChat;
         } else {
-            currentChat = chatSelector.value || 'default'; // Default to default or first option
+            currentChat = chatSelector.value || 'Default'; // Default to default or first option
         }
-    }    
+
+        //  localStorage.setItem('chatOptions', JSON.stringify(users))
+
+    }
+
+    // window.addEventListener('DOMContentLoaded', () => {
+    //     const savedOptions = localStorage.getItem('chatOptions');
+    //     if (savedOptions) {
+    //         const users = JSON.parse(savedOptions);
+    //         updateChatSelector(users);  // Populate the selector with saved options
+    //     } else {
+    //         // Fetch options from the server or use default behavior
+    //         // fetchUsersFromServer();
+    //     }
+    // });
+
+    // function updateChatSelector(users) {
+    //     chatSelector.innerHTML = ''; // Clear existing options
+
+    //     // Add group option (static or dynamic if needed)
+    //     const option1 = document.createElement('option');
+    //     option1.value = 'Default';
+    //     option1.textContent = 'Default';
+    //     chatSelector.appendChild(option1);
+
+    //     // Add user options
+    //     users.forEach(({ userName, room }) => {
+            
+    //         // if (userName !== localStorage.getItem('userName')) return
+    //         const option = document.createElement('option');
+    //         option.value = userName; // Use userName as value for direct messages
+    //         option.textContent = userName;
+    //         chatSelector.appendChild(option);
+
+    //     });
+
+    //     // Restore currentChat if it still exists
+    //     if (currentChat && chatSelector.querySelector(`option[value="${currentChat}"]`)) {
+    //         chatSelector.value = currentChat;
+    //     } else {
+    //         currentChat = chatSelector.value || 'Default'; // Default to default or first option
+    //     }
+    // }    
+
+    // Handle an error event 
+    socket.on('error', (error) => {
+        console.error('Socket error:', error);
+        // Log the error, notify the user, or take corrective action
+    })    
 
     // Initial load of messages
     socket.on('connect', () => {
@@ -251,3 +309,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
 });    
 
+function formatDateTimeNow() {
+    const date = new Date();
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Get month and pad with 0
+    const day = String(date.getDate()).padStart(2, '0'); // Get day and pad with 0
+    const year = date.getFullYear();
+    const time = new Date().toLocaleTimeString();
+    return `${month}/${day}/${year} ${time}`; 
+};
+
+// Client-Side API Overview
+// The client-side Socket.IO API provides methods for:
+
+// io() - Connects to the server
+// socket.emit() - Sends an event to the server
+// socket.on() - Listens for events from the server
+// socket.disconnect() - Disconnects from the server
+// Socket.IO Events
+// Socket.IO uses an event-based architecture for communication. Here are some key events:
+
+// Built-in Events
+// connect - Fired upon connection
+// disconnect - Fired upon disconnection
+// error - Fired upon an error
+// reconnect - Fired upon successful reconnection
+// reconnect_attempt - Fired upon reconnection attempt
